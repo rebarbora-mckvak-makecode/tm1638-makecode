@@ -1,138 +1,132 @@
 namespace tm1638 {
 
-    export class TM1638 {
-        readonly DIGITS: number[];
-        stb: DigitalPin;
-        clk: DigitalPin;
-        dio: DigitalPin;
-        _ON: number;
-        brightness: number;
-        count: number;  // number of LEDs
+    let _stb = DigitalPin.P0;
+    let _clk = DigitalPin.P1;
+    let _dio = DigitalPin.P2;
+    let _ON = 8;
+    let _brightness = 4;
+    let DIGITS: number[];
 
-        constructor(stb: DigitalPin, clk: DigitalPin, dio: DigitalPin) {
-            this.stb = stb;
-            this.clk = clk;
-            this.dio = dio;
-            // XXX: I did not find a way to make this a global variable
-            this.DIGITS = [0x3F, 0x06, 0x5B, 0x4F, 0x66, 0x6D, 0x7D, 0x07, 0x7F, 0x6F, 0x77, 0x7C, 0x39, 0x5E, 0x79, 0x71];
-        }
+    //% blockId=TM1638_init
+    //% block="LED&KEY panel pins STB %stb|CLK %clk|DIO %dio"
+    export function init(stb: DigitalPin, clk: DigitalPin, dio: DigitalPin): void {
+        DIGITS = [0x3F, 0x06, 0x5B, 0x4F, 0x66, 0x6D, 0x7D, 0x07, 0x7F, 0x6F, 0x77, 0x7C, 0x39, 0x5E, 0x79, 0x71];
+        _stb = stb;
+        _clk = clk;
+        _dio = dio;
+        pins.setPull(_dio, PinPullMode.PullUp);
+        pins.digitalWritePin(_clk, 1);
+        pins.digitalWritePin(_dio, 0);
+        pins.digitalWritePin(_stb, 1);
+        clear();
+        _ON = 8;
+        _brightness = 4;
+        _write_dsp_ctrl();
+    }
 
-        init(): void {
-            pins.setPull(this.dio, PinPullMode.PullUp);
-            pins.digitalWritePin(this.clk, 1);
-            pins.digitalWritePin(this.dio, 0);
-            pins.digitalWritePin(this.stb, 1);
-            this.clear();
-            this._ON = 8;
-            this.brightness = 4;
-            this._write_dsp_ctrl();
-        }
+    function _stbH() {
+        pins.digitalWritePin(_stb, 1);
+    }
 
-        _stbH() {
-            pins.digitalWritePin(this.stb, 1);
-        }
+    function _stbL() {
+        pins.digitalWritePin(_stb, 0);
+    }
 
-        _stbL() {
-            pins.digitalWritePin(this.stb, 0);
-        }
+    function _clkH() {
+        pins.digitalWritePin(_clk, 1);
+    }
 
-        _clkH() {
-            pins.digitalWritePin(this.clk, 1);
-        }
+    function _clkL() {
+        pins.digitalWritePin(_clk, 0);
+    }
 
-        _clkL() {
-            pins.digitalWritePin(this.clk, 0);
-        }
+    function _command(cmd: number) {
+        _stbL();
+        _write_byte(cmd);
+        _stbH();
+    }
 
-        _command(cmd: number) {
-            this._stbL();
-            this._write_byte(cmd);
-            this._stbH();
-        }
-
-        _write_byte(b: number) {
-            for (let i = 0; i < 8; i++) {
-                this._clkL();
-                pins.digitalWritePin(this.dio, (b >> i) & 1);
-                this._clkH();
-            }
-        }
-
-        _write_dsp_ctrl() {
-            this._command(0x80 | this._ON | (this.brightness & 7));
-        }
-
-        _set_address(addr: number) {
-            this._write_byte(0xC0 | (addr & 0xF));
-        }
-
-        //% blockId=TM1638_clear
-        //% block="Clear display and LEDs"
-        clear() {
-            this._command(0x40);
-            this._stbL();
-            this._set_address(0);
-            for (let i = 0; i < 16; i++) {
-                this._write_byte(0);
-            }
-            this._stbH();
-        }
-
-        //% blockId=TM1638_set_led
-        //% block="Turn LED on/off"
-        setLED(led: number, b: boolean) {
-            this._command(0x44);
-            this._stbL();
-            this._set_address((led << 1) + 1);
-            this._write_byte(b ? 1 : 0);
-            this._stbH();
-        }
-
-        setDigit(segment: number, val: number) {
-            this._command(0x44);
-            this._stbL();
-            this._set_address(segment << 1);
-            this._write_byte(val & 0xFF);
-            this._stbH();
-        }
-
-        //% blockId=TM1638_show_number
-        //% block="Show a number on display"
-        showNumber(n: number) {
-            let x = n;
-            for (let i = 7; i >= 0; i--) {
-                const j = x % 10;
-                this.setDigit(i, x > 0 || i == 7 ? this.DIGITS[j] : 0);
-                x = Math.idiv(x, 10);
-            }
-        }
-
-        //% blockId=TM1638_show_number_left
-        //% block="Show a number on left display"
-        showNumberLeft(n: number) {
-            this._showNumber(0, n);
-        }
-
-        //% blockId=TM1638_show_number_right
-        //% block="Show a number on right display"
-        showNumberRight(n: number) {
-            this._showNumber(4, n);
-        }
-
-        _showNumber(offset: number, n: number) {
-            let x = n;
-            for (let i = 3; i >= 0; i--) {
-                const j = x % 10;
-                this.setDigit(offset + i, x > 0 || i == 3 ? this.DIGITS[j] : 0);
-                x = Math.idiv(x, 10);
-            }
+    function _write_byte(b: number) {
+        for (let i = 0; i < 8; i++) {
+            _clkL();
+            pins.digitalWritePin(_dio, (b >> i) & 1);
+            _clkH();
         }
     }
 
-    //% blockId=TM1638_connect
-    //% block="connect LED&KEY panel"
-    export function create(stb: DigitalPin, clk: DigitalPin, dio: DigitalPin): TM1638 {
-        return new TM1638(stb, clk, dio);
+    function _write_dsp_ctrl() {
+        _command(0x80 | _ON | (_brightness & 7));
+    }
+
+    function _set_address(addr: number) {
+        _write_byte(0xC0 | (addr & 0xF));
+    }
+
+    //% blockId=TM1638_clear
+    //% block="Clear display and LEDs"
+    export function clear(): void {
+        _command(0x40);
+        _stbL();
+        _set_address(0);
+        for (let i = 0; i < 16; i++) {
+            _write_byte(0);
+        }
+        _stbH();
+    }
+
+    //% blockId=TM1638_set_led
+    //% block="Turn LED %led on/off %b"
+    //% led.min=0 led.max=7
+    export function setLED(led: number, b: boolean): void {
+        _command(0x44);
+        _stbL();
+        _set_address((led << 1) + 1);
+        _write_byte(b ? 1 : 0);
+        _stbH();
+    }
+
+    //% blockId=TM1638_set_segment
+    //% block="Set segment %segment to value %val"
+    //% segment.min=0 segment.max=7
+    //% val.min=0 val.max=255
+    export function setSegment(segment: number, val: number): void {
+        _command(0x44);
+        _stbL();
+        _set_address(segment << 1);
+        _write_byte(val & 0xFF);
+        _stbH();
+    }
+
+    //% blockId=TM1638_show_number
+    //% block="Show a number %n on display"
+    export function showNumber(n: number): void {
+        let x = n;
+        for (let i = 7; i >= 0; i--) {
+            const j = x % 10;
+            setSegment(i, x > 0 || i == 7 ? DIGITS[j] : 0);
+            x = Math.idiv(x, 10);
+        }
+    }
+
+    //% blockId=TM1638_show_number_left
+    //% block="Show a number %n on left display"
+    export function showNumberLeft(n: number): void {
+        _showNumber(0, n);
+    }
+
+    //% blockId=TM1638_show_number_right
+    //% block="Show a number %n on right display"
+    export function showNumberRight(n: number) : void {
+        _showNumber(4, n);
+    }
+
+    function _showNumber(offset: number, n: number) {
+        let x = n;
+        for (let i = 3; i >= 0; i--) {
+            const j = x % 10;
+            setSegment(offset + i, x > 0 || i == 3 ? DIGITS[j] : 0);
+            x = Math.idiv(x, 10);
+        }
     }
 }
 
