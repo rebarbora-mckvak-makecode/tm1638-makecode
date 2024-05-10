@@ -1,3 +1,4 @@
+//% block="LED&KEY"
 namespace tm1638 {
 
     let _stb = DigitalPin.P0;
@@ -8,8 +9,8 @@ namespace tm1638 {
     let DIGITS: number[];
 
     //% blockId=TM1638_init
-    //% block="LED&KEY panel pins STB %stb|CLK %clk|DIO %dio"
-    export function init(stb: DigitalPin, clk: DigitalPin, dio: DigitalPin): void {
+    //% block="LED&KEY panel pins STB $stb|CLK $clk|DIO $dio"
+    export function init(stb: DigitalPin = DigitalPin.P0, clk: DigitalPin = DigitalPin.P1, dio: DigitalPin = DigitalPin.P2): void {
         DIGITS = [0x3F, 0x06, 0x5B, 0x4F, 0x66, 0x6D, 0x7D, 0x07, 0x7F, 0x6F, 0x77, 0x7C, 0x39, 0x5E, 0x79, 0x71];
         _stb = stb;
         _clk = clk;
@@ -74,8 +75,16 @@ namespace tm1638 {
         _stbH();
     }
 
+    //% blockId=TM1638_set_brightness
+    //% block="Set display brightness to $b"
+    //% b.min=0 b.max=7
+    export function setBrightness(b: number = 4): void {
+        _brightness = b;
+        _write_dsp_ctrl();
+    }
+
     //% blockId=TM1638_set_led
-    //% block="Turn LED %led on/off %b"
+    //% block="Turn LED $led|on/off $b"
     //% led.min=0 led.max=7
     export function setLED(led: number, b: boolean): void {
         _command(0x44);
@@ -86,7 +95,7 @@ namespace tm1638 {
     }
 
     //% blockId=TM1638_set_segment
-    //% block="Set segment %segment to value %val"
+    //% block="Set segment $segment|to value $val"
     //% segment.min=0 segment.max=7
     //% val.min=0 val.max=255
     export function setSegment(segment: number, val: number): void {
@@ -98,7 +107,7 @@ namespace tm1638 {
     }
 
     //% blockId=TM1638_show_number
-    //% block="Show a number %n on display"
+    //% block="Show a number $n on display"
     export function showNumber(n: number): void {
         let x = n;
         for (let i = 7; i >= 0; i--) {
@@ -109,13 +118,13 @@ namespace tm1638 {
     }
 
     //% blockId=TM1638_show_number_left
-    //% block="Show a number %n on left display"
+    //% block="Show a number $n on left display"
     export function showNumberLeft(n: number): void {
         _showNumber(0, n);
     }
 
     //% blockId=TM1638_show_number_right
-    //% block="Show a number %n on right display"
+    //% block="Show a number $n on right display"
     export function showNumberRight(n: number) : void {
         _showNumber(4, n);
     }
