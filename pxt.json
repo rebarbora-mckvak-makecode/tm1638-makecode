@@ -1,5 +1,5 @@
 {
-    "name": "bomba-test",
+    "name": "LED&KEY TM1638",
     "description": "",
     "dependencies": {
         "core": "*"
